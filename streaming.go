@@ -20,6 +20,7 @@ type requestStream struct {
 	reader          *bufio.Reader
 	totalBytesRead  int
 	chunkLeft       int
+	mutex           sync.Mutex
 }
 
 func (rs *requestStream) Read(p []byte) (int, error) {
@@ -27,6 +28,8 @@ func (rs *requestStream) Read(p []byte) (int, error) {
 		n   int
 		err error
 	)
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
 	if rs.header.ContentLength() == -1 {
 		if rs.chunkLeft == 0 {
 			chunkSize, err := parseChunkSize(rs.reader)
@@ -98,6 +101,8 @@ func acquireRequestStream(b *bytebufferpool.ByteBuffer, r *bufio.Reader, h heade
 }
 
 func releaseRequestStream(rs *requestStream) {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
 	rs.prefetchedBytes = nil
 	rs.totalBytesRead = 0
 	rs.chunkLeft = 0
